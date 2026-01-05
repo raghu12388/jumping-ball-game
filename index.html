@@ -2,35 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump – Visual Test</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helix Jump – Event Fix</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <style>
   html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: black;
+    margin: 0; padding: 0; height: 100%;
+    overflow: hidden; background: #000;
+    touch-action: none; /* IMPORTANT */
   }
-  #msg {
-    position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: white;
-    font-size: 16px;
-    z-index: 10;
-    background: rgba(0,0,0,0.6);
-    padding: 6px 12px;
-    border-radius: 12px;
+  #hint{
+    position:fixed; top:10px; left:50%; transform:translateX(-50%);
+    color:#fff; background:#000a; padding:6px 12px; border-radius:12px; z-index:10;
   }
 </style>
 </head>
 <body>
-
-<div id="msg">Tap / Click → Ball must jump</div>
+<div id="hint">Tap / Click on the GAME to Jump</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-
 <script>
 /* SCENE */
 const scene = new THREE.Scene();
@@ -44,6 +33,7 @@ camera.lookAt(0, 1, 0);
 /* RENDERER */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
 /* LIGHT */
@@ -63,39 +53,43 @@ const ball = new THREE.Mesh(
 ball.position.y = 2;
 scene.add(ball);
 
-/* JUMP STATE */
-let jumping = false;
-let jumpHeight = 0;
+/* PHYSICS (VISIBLE) */
+let vy = 0;
+const gravity = -0.01;
+const jumpForce = 0.22;
+const floorY = -6;
 
-/* INPUT – DIRECT MOVE */
-function jump() {
-  jumping = true;
-  jumpHeight = 1.5;
-  console.log("JUMP CLICKED");
-}
+/* 🔥 INPUT — BIND TO CANVAS (KEY FIX) */
+const canvas = renderer.domElement;
+canvas.addEventListener('pointerdown', (e)=>{
+  e.preventDefault();
+  vy += jumpForce;          // ADD, don’t replace
+}, { passive:false });
 
-window.addEventListener("click", jump);
-window.addEventListener("touchstart", jump);
+/* RESIZE */
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
 
-/* LOOP – VISUAL ONLY */
-function animate() {
+/* LOOP */
+function animate(){
   requestAnimationFrame(animate);
 
-  if (jumping) {
-    ball.position.y += 0.15;
-    jumpHeight -= 0.15;
-    if (jumpHeight <= 0) jumping = false;
-  } else {
-    if (ball.position.y > 2) {
-      ball.position.y -= 0.08;
-    }
+  vy += gravity;
+  ball.position.y += vy;
+
+  if(ball.position.y < floorY){
+    ball.position.y = 2;
+    vy = 0;
   }
 
   renderer.render(scene, camera);
 }
 animate();
 </script>
-
 </body>
 </html>
+
 
