@@ -1,13 +1,14 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Jumping Ball Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
   body {
     margin: 0;
-    background: #111;
+    background: #0b0b0b;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -16,12 +17,13 @@
     user-select: none;
   }
   canvas {
-    background: #222;
-    border: 2px solid #ff0000;
-    border-radius: 10px;
+    background: #1c1c1c;
+    border: 3px solid #ff0000;
+    border-radius: 14px;
   }
 </style>
 </head>
+
 <body>
 
 <canvas id="game" width="400" height="600"></canvas>
@@ -30,24 +32,30 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let ball = {
+/* GAME STATE */
+let started = false;
+let gameOver = false;
+let score = 0;
+let frame = 0;
+
+/* BALL */
+const ball = {
   x: 200,
-  y: 500,
+  y: 300,
   r: 15,
   dy: 0,
-  gravity: 0.4,
-  jump: -8
+  gravity: 0.45,
+  jump: -9
 };
 
+/* OBSTACLES */
 let obstacles = [];
-let frame = 0;
-let score = 0;
-let gameOver = false;
 
+/* FUNCTIONS */
 function spawnObstacle() {
-  let width = Math.random() * 200 + 50;
+  let width = Math.random() * 200 + 60;
   obstacles.push({
-    x: Math.random() * (400 - width),
+    x: Math.random() * (canvas.width - width),
     y: -20,
     w: width,
     h: 15
@@ -57,12 +65,12 @@ function spawnObstacle() {
 function drawBall() {
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = "red";
+  ctx.fillStyle = "#ff3b3b";
   ctx.fill();
 }
 
 function drawObstacles() {
-  ctx.fillStyle = "white";
+  ctx.fillStyle = "#ffffff";
   obstacles.forEach(ob => {
     ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
   });
@@ -71,12 +79,16 @@ function drawObstacles() {
 function updateBall() {
   ball.dy += ball.gravity;
   ball.y += ball.dy;
-  if (ball.y + ball.r > canvas.height) gameOver = true;
+
+  if (ball.y + ball.r > canvas.height) {
+    gameOver = true;
+  }
 }
 
 function updateObstacles() {
   obstacles.forEach(ob => {
-    ob.y += 2;
+    ob.y += 2.2;
+
     if (
       ball.x > ob.x &&
       ball.x < ob.x + ob.w &&
@@ -86,26 +98,26 @@ function updateObstacles() {
       gameOver = true;
     }
   });
+
   obstacles = obstacles.filter(ob => ob.y < canvas.height);
 }
 
 function drawScore() {
-  ctx.fillStyle = "white";
+  ctx.fillStyle = "#ffffff";
   ctx.font = "22px Arial";
   ctx.fillText("Score: " + score, 10, 30);
 }
 
-function loop() {
-  if (gameOver) {
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "red";
-    ctx.font = "32px Arial";
-    ctx.fillText("Game Over", 120, 280);
-    ctx.fillStyle = "white";
-    ctx.fillText("Score: " + score, 150, 330);
-    return;
-  }
+function drawStartText() {
+  ctx.fillStyle = "#ffd700";
+  ctx.font = "22px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Tap / Click to Start", canvas.width / 2, 260);
+  ctx.fillText("Jump & Avoid Blocks", canvas.width / 2, 300);
+  ctx.textAlign = "left";
+}
 
-  ctx.clearRect(0, 0, canvas.width, c
+function drawGameOver() {
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canva
 
