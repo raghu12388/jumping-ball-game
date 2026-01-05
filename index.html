@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Helix Jump 3D</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta charset="UTF-8">
+<title>Helix Jump 3D - Step 1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <style>
   html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
     background: #000;
-    height: 100%;
   }
   canvas { display: block; }
 </style>
@@ -20,43 +19,45 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* ------------ TELEGRAM INIT ------------ */
+/* ---------- TELEGRAM ---------- */
 if (window.Telegram && Telegram.WebApp) {
   Telegram.WebApp.ready();
   Telegram.WebApp.expand();
 }
 
-/* ------------ SCENE ------------ */
+/* ---------- SCENE ---------- */
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x7fc7d9);
+scene.background = new THREE.Color(0x87ceeb);
 
-/* ------------ CAMERA ------------ */
+/* ---------- CAMERA ---------- */
 const camera = new THREE.PerspectiveCamera(
   60,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  100
 );
-camera.position.set(0, 6, 10);
+camera.position.set(0, 3, 6);
 camera.lookAt(0, 0, 0);
 
-/* ------------ RENDERER ------------ */
+/* ---------- RENDERER ---------- */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ------------ LIGHT ------------ */
-scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 7));
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+/* ---------- LIGHT ---------- */
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(3, 6, 4);
+scene.add(dirLight);
 
-/* ------------ TOWER ------------ */
+/* ---------- TOWER ---------- */
 const tower = new THREE.Mesh(
-  new THREE.CylinderGeometry(1.2, 1.2, 20, 32),
+  new THREE.CylinderGeometry(1, 1, 20, 32),
   new THREE.MeshStandardMaterial({ color: 0x4db6ac })
 );
 scene.add(tower);
 
-/* ------------ BALL ------------ */
+/* ---------- BALL ---------- */
 const ball = new THREE.Mesh(
   new THREE.SphereGeometry(0.35, 32, 32),
   new THREE.MeshStandardMaterial({ color: 0xff4081 })
@@ -64,36 +65,36 @@ const ball = new THREE.Mesh(
 ball.position.y = 4;
 scene.add(ball);
 
-/* ------------ PHYSICS ------------ */
+/* ---------- PHYSICS ---------- */
 let velocityY = 0;
-const gravity = -0.015;
-const jumpForce = 0.28;
-const groundY = -6;
+const gravity = -0.03;
+const jumpForce = 0.35;
+const resetY = -7;
 
-/* ------------ RESIZE ------------ */
+/* ---------- INPUT ---------- */
+function jump() {
+  velocityY = jumpForce;
+}
+window.addEventListener("touchstart", jump, { passive: true });
+window.addEventListener("mousedown", jump);
+
+/* ---------- RESIZE ---------- */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/* ------------ INPUT (MOBILE SAFE) ------------ */
-function jump() {
-  velocityY = jumpForce;
-}
-
-window.addEventListener("touchstart", jump, { passive: true });
-window.addEventListener("mousedown", jump);
-
-/* ------------ LOOP ------------ */
+/* ---------- LOOP ---------- */
 function animate() {
   requestAnimationFrame(animate);
 
+  // APPLY GRAVITY (VERY IMPORTANT)
   velocityY += gravity;
   ball.position.y += velocityY;
 
-  // reset if fallen
-  if (ball.position.y < groundY) {
+  // RESET WHEN FALLS DOWN
+  if (ball.position.y < resetY) {
     ball.position.y = 4;
     velocityY = 0;
   }
@@ -105,6 +106,7 @@ animate();
 
 </body>
 </html>
+
 
 
 
