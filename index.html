@@ -12,9 +12,7 @@
     background: #000;
     height: 100%;
   }
-  canvas {
-    display: block;
-  }
+  canvas { display: block; }
 </style>
 </head>
 <body>
@@ -22,17 +20,17 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* ---------------- TELEGRAM INIT ---------------- */
+/* ------------ TELEGRAM INIT ------------ */
 if (window.Telegram && Telegram.WebApp) {
   Telegram.WebApp.ready();
   Telegram.WebApp.expand();
 }
 
-/* ---------------- SCENE ---------------- */
+/* ------------ SCENE ------------ */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7fc7d9);
 
-/* ---------------- CAMERA ---------------- */
+/* ------------ CAMERA ------------ */
 const camera = new THREE.PerspectiveCamera(
   60,
   window.innerWidth / window.innerHeight,
@@ -42,67 +40,72 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 6, 10);
 camera.lookAt(0, 0, 0);
 
-/* ---------------- RENDERER ---------------- */
+/* ------------ RENDERER ------------ */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ---------------- LIGHT ---------------- */
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 7);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+/* ------------ LIGHT ------------ */
+scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 7));
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-/* ---------------- TOWER ---------------- */
-const towerGeo = new THREE.CylinderGeometry(1.2, 1.2, 20, 32);
-const towerMat = new THREE.MeshStandardMaterial({ color: 0x4db6ac });
-const tower = new THREE.Mesh(towerGeo, towerMat);
+/* ------------ TOWER ------------ */
+const tower = new THREE.Mesh(
+  new THREE.CylinderGeometry(1.2, 1.2, 20, 32),
+  new THREE.MeshStandardMaterial({ color: 0x4db6ac })
+);
 scene.add(tower);
 
-/* ---------------- BALL ---------------- */
-const ballGeo = new THREE.SphereGeometry(0.35, 32, 32);
-const ballMat = new THREE.MeshStandardMaterial({ color: 0xff4081 });
-const ball = new THREE.Mesh(ballGeo, ballMat);
-ball.position.y = 5;
+/* ------------ BALL ------------ */
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(0.35, 32, 32),
+  new THREE.MeshStandardMaterial({ color: 0xff4081 })
+);
+ball.position.y = 4;
 scene.add(ball);
 
-/* ---------------- GAME PHYSICS ---------------- */
+/* ------------ PHYSICS ------------ */
 let velocityY = 0;
-const gravity = -0.01;
+const gravity = -0.015;
+const jumpForce = 0.28;
+const groundY = -6;
 
-/* ---------------- RESIZE ---------------- */
+/* ------------ RESIZE ------------ */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/* ---------------- LOOP ---------------- */
+/* ------------ INPUT (MOBILE SAFE) ------------ */
+function jump() {
+  velocityY = jumpForce;
+}
+
+window.addEventListener("touchstart", jump, { passive: true });
+window.addEventListener("mousedown", jump);
+
+/* ------------ LOOP ------------ */
 function animate() {
   requestAnimationFrame(animate);
 
-  // gravity
   velocityY += gravity;
   ball.position.y += velocityY;
 
-  // reset when falling too low
-  if (ball.position.y < -8) {
-    ball.position.y = 5;
+  // reset if fallen
+  if (ball.position.y < groundY) {
+    ball.position.y = 4;
     velocityY = 0;
   }
 
   renderer.render(scene, camera);
 }
 animate();
-
-/* ---------------- TOUCH JUMP (TEMP) ---------------- */
-window.addEventListener("pointerdown", () => {
-  velocityY = 0.18;
-});
 </script>
 
 </body>
 </html>
+
 
 
 
