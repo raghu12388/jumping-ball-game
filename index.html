@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump 3D - Debug</title>
+<title>Helix Jump – Visual Test</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #000;
+    background: black;
   }
-  #hint {
+  #msg {
     position: fixed;
     top: 10px;
     left: 50%;
@@ -19,89 +19,76 @@
     color: white;
     font-size: 16px;
     z-index: 10;
-    background: rgba(0,0,0,0.5);
-    padding: 6px 10px;
-    border-radius: 10px;
+    background: rgba(0,0,0,0.6);
+    padding: 6px 12px;
+    border-radius: 12px;
   }
 </style>
 </head>
 <body>
 
-<div id="hint">Tap / Click to Jump</div>
+<div id="msg">Tap / Click → Ball must jump</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* ---------- SCENE ---------- */
+/* SCENE */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
-/* ---------- CAMERA ---------- */
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+/* CAMERA */
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
 camera.position.set(0, 3, 6);
 camera.lookAt(0, 1, 0);
 
-/* ---------- RENDERER ---------- */
+/* RENDERER */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ---------- LIGHT ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const d = new THREE.DirectionalLight(0xffffff, 0.8);
-d.position.set(5, 10, 5);
-scene.add(d);
+/* LIGHT */
+scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-/* ---------- TOWER ---------- */
-const tower = new THREE.Mesh(
-  new THREE.CylinderGeometry(1, 1, 20, 32),
-  new THREE.MeshStandardMaterial({ color: 0x4db6ac })
-);
-scene.add(tower);
+/* TOWER */
+scene.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(1,1,20,32),
+  new THREE.MeshBasicMaterial({ color: 0x4db6ac })
+));
 
-/* ---------- BALL ---------- */
+/* BALL */
 const ball = new THREE.Mesh(
-  new THREE.SphereGeometry(0.35, 32, 32),
-  new THREE.MeshStandardMaterial({ color: 0xff4081 })
+  new THREE.SphereGeometry(0.35,32,32),
+  new THREE.MeshBasicMaterial({ color: 0xff4081 })
 );
-ball.position.y = 3;
+ball.position.y = 2;
 scene.add(ball);
 
-/* ---------- PHYSICS ---------- */
-let velocityY = 0;
-const gravity = -0.01;      // SLOW gravity (visible)
-const jumpForce = 0.18;     // CLEAR jump
-const minY = -6;
+/* JUMP STATE */
+let jumping = false;
+let jumpHeight = 0;
 
-/* ---------- INPUT (ALL EVENTS) ---------- */
-function doJump() {
-  velocityY += jumpForce;   // ADD jump (important)
-  console.log("JUMP");      // debug
+/* INPUT – DIRECT MOVE */
+function jump() {
+  jumping = true;
+  jumpHeight = 1.5;
+  console.log("JUMP CLICKED");
 }
 
-window.addEventListener("pointerdown", doJump);
-window.addEventListener("mousedown", doJump);
-window.addEventListener("touchstart", doJump, { passive: true });
+window.addEventListener("click", jump);
+window.addEventListener("touchstart", jump);
 
-/* ---------- RESIZE ---------- */
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-/* ---------- LOOP ---------- */
+/* LOOP – VISUAL ONLY */
 function animate() {
   requestAnimationFrame(animate);
 
-  // gravity
-  velocityY += gravity;
-  ball.position.y += velocityY;
-
-  // reset
-  if (ball.position.y < minY) {
-    ball.position.y = 3;
-    velocityY = 0;
+  if (jumping) {
+    ball.position.y += 0.15;
+    jumpHeight -= 0.15;
+    if (jumpHeight <= 0) jumping = false;
+  } else {
+    if (ball.position.y > 2) {
+      ball.position.y -= 0.08;
+    }
   }
 
   renderer.render(scene, camera);
@@ -111,3 +98,4 @@ animate();
 
 </body>
 </html>
+
