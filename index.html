@@ -1,123 +1,178 @@
  <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Jumping Ball Game</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<meta charset="UTF-8" />
+<title>Jumping Ball</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <style>
-  body {
-    margin: 0;
-    background: #0b0b0b;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0b0b0b; overflow: hidden;
+    touch-action: manipulation; user-select: none;
     font-family: Arial, sans-serif;
-    user-select: none;
   }
-  canvas {
-    background: #1c1c1c;
-    border: 3px solid #ff0000;
-    border-radius: 14px;
+  canvas { display:block; background:#1c1c1c; }
+  .hud {
+    position: fixed; top: 8px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between; color:#fff;
+    pointer-events: none;
+  }
+  .pill { background:#000a; padding:6px 10px; border-radius:12px; }
+  .bottom {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    color:#fff; background:#000a; padding:8px 14px; border-radius:16px;
   }
 </style>
 </head>
-
 <body>
 
-<canvas id="game" width="400" height="600"></canvas>
+<div class="hud">
+  <div class="pill" id="userBox">👤 Guest</div>
+  <div class="pill" id="coinsBox">🪙 0</div>
+</div>
+<div class="bottom" id="hint">Tap to Start</div>
+
+<canvas id="game"></canvas>
 
 <script>
+/* ---------------- TELEGRAM INIT ---------------- */
+if (window.Telegram && Telegram.WebApp) {
+  Telegram.WebApp.ready();
+  Telegram.WebApp.expand();
+}
+
+/* ---------------- CANVAS ---------------- */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize(); window.addEventListener("resize", resize);
 
-/* GAME STATE */
-let started = false;
-let gameOver = false;
-let score = 0;
-let frame = 0;
+/* ---------------- USER / STORAGE ---------------- */
+const tgUser = Telegram.WebApp?.initDataUnsafe?.user;
+const userId = tgUser?.id || "guest";
+const userName = tgUser?.first_name || "Guest";
+document.getElementById("userBox").textContent = "👤 " + userName;
 
-/* BALL */
-const ball = {
-  x: 200,
-  y: 300,
-  r: 15,
-  dy: 0,
-  gravity: 0.45,
-  jump: -9
+const LS = {
+  lb: "leaderboard",
+  coins: "coins_" + userId,
+  daily: "daily_" + userId,
+  refs: "refs_" + userId
 };
 
-/* OBSTACLES */
-let obstacles = [];
+let leaderboard = JSON.parse(localStorage.getItem(LS.lb)) || {};
+let coins = parseInt(localStorage.getItem(LS.coins) || "0", 10);
+document.getElementById("coinsBox").textContent = "🪙 " + coins;
 
-/* FUNCTIONS */
-function spawnObstacle() {
-  let width = Math.random() * 200 + 60;
-  obstacles.push({
-    x: Math.random() * (canvas.width - width),
-    y: -20,
-    w: width,
-    h: 15
-  });
-}
-
-function drawBall() {
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-  ctx.fillStyle = "#ff3b3b";
-  ctx.fill();
-}
-
-function drawObstacles() {
-  ctx.fillStyle = "#ffffff";
-  obstacles.forEach(ob => {
-    ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
-  });
-}
-
-function updateBall() {
-  ball.dy += ball.gravity;
-  ball.y += ball.dy;
-
-  if (ball.y + ball.r > canvas.height) {
-    gameOver = true;
+/* ---------------- REFERRAL (basic) ---------------- */
+// If bot opens with ?startapp=ref_<id>, credit once
+const startParam = Telegram.WebApp?.initDataUnsafe?.start_param;
+if (startParam && startParam.startsWith("ref_")) {
+  const refKey = LS.refs + "_" + startParam;
+  if (!localStorage.getItem(refKey)) {
+    coins += 50; // referral bonus
+    localStorage.setItem(LS.coins, coins);
+    localStorage.setItem(refKey, "1");
+    document.getElementById("coinsBox").textContent = "🪙 " + coins;
   }
 }
 
-function updateObstacles() {
-  obstacles.forEach(ob => {
-    ob.y += 2.2;
+/* ---------------- DAILY REWARD ---------------- */
+(function dailyReward(){
+  const last = parseInt(localStorage.getItem(LS.daily) || "0", 10);
+  const now = Date.now();
+  if (now - last >= 24*60*60*1000) {
+    coins += 20; // daily bonus
+    localStorage.setItem(LS.coins, coins);
+    localStorage.setItem(LS.daily, now.toString());
+    document.getElementById("coinsBox").textContent = "🪙 " + coins;
+  }
+})();
 
-    if (
-      ball.x > ob.x &&
-      ball.x < ob.x + ob.w &&
-      ball.y + ball.r > ob.y &&
-      ball.y + ball.r < ob.y + ob.h
-    ) {
-      gameOver = true;
-    }
+/* ---------------- GAME STATE ---------------- */
+let started = false, gameOver = false, score = 0, frame = 0;
+
+/* ---------------- BALL ---------------- */
+const ball = { x:()=>canvas.width/2, y:canvas.height/2, r:15, dy:0, g:0.5, j:-10 };
+
+/* ---------------- OBSTACLES ---------------- */
+let obs = [];
+function spawn() {
+  const w = Math.random()*(canvas.width*0.6)+60;
+  obs.push({ x:Math.random()*(canvas.width-w), y:-20, w, h:14 });
+}
+
+/* ---------------- DRAW ---------------- */
+function drawBall(){ ctx.beginPath(); ctx.arc(ball.x(), ball.y, ball.r, 0, Math.PI*2); ctx.fillStyle="#ff3b3b"; ctx.fill(); }
+function drawObs(){ ctx.fillStyle="#fff"; obs.forEach(o=>ctx.fillRect(o.x,o.y,o.w,o.h)); }
+function drawScore(){ ctx.fillStyle="#fff"; ctx.font="20px Arial"; ctx.fillText("Score: "+score, 15, 40); }
+function drawCenter(txt,y){ ctx.fillStyle="#ffd700"; ctx.font="24px Arial"; ctx.textAlign="center"; ctx.fillText(txt, canvas.width/2, y); ctx.textAlign="left"; }
+
+/* ---------------- UPDATE ---------------- */
+function updBall(){ ball.dy+=ball.g; ball.y+=ball.dy; if(ball.y+ball.r>canvas.height) gameOver=true; }
+function updObs(){
+  obs.forEach(o=>{
+    o.y+=3;
+    if(ball.x()>o.x && ball.x()<o.x+o.w && ball.y+ball.r>o.y && ball.y+ball.r<o.y+o.h) gameOver=true;
   });
-
-  obstacles = obstacles.filter(ob => ob.y < canvas.height);
+  obs = obs.filter(o=>o.y<canvas.height);
 }
 
-function drawScore() {
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "22px Arial";
-  ctx.fillText("Score: " + score, 10, 30);
+/* ---------------- LEADERBOARD ---------------- */
+function saveLeaderboard(){
+  if(!leaderboard[userId] || score>leaderboard[userId].score){
+    leaderboard[userId]={name:userName, score};
+    localStorage.setItem(LS.lb, JSON.stringify(leaderboard));
+  }
+}
+function drawLeaderboard(){
+  const top = Object.values(leaderboard).sort((a,b)=>b.score-a.score).slice(0,5);
+  ctx.fillStyle="#fff"; ctx.font="18px Arial";
+  ctx.fillText("🏆 Leaderboard", canvas.width/2-60, canvas.height/2+110);
+  top.forEach((e,i)=>ctx.fillText(`${i+1}. ${e.name}: ${e.score}`, canvas.width/2-90, canvas.height/2+150+i*24));
 }
 
-function drawStartText() {
-  ctx.fillStyle = "#ffd700";
-  ctx.font = "22px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Tap / Click to Start", canvas.width / 2, 260);
-  ctx.fillText("Jump & Avoid Blocks", canvas.width / 2, 300);
-  ctx.textAlign = "left";
+/* ---------------- LOOP ---------------- */
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!started){
+    drawBall(); drawCenter("TAP TO START", canvas.height/2);
+    requestAnimationFrame(loop); return;
+  }
+  if(gameOver){
+    saveLeaderboard();
+    coins += Math.max(1, Math.floor(score/5)); // score → coins
+    localStorage.setItem(LS.coins, coins);
+    document.getElementById("coinsBox").textContent = "🪙 " + coins;
+    ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    drawCenter("GAME OVER", canvas.height/2-20);
+    ctx.fillStyle="#fff"; ctx.font="22px Arial"; ctx.textAlign="center";
+    ctx.fillText("Score: "+score, canvas.width/2, canvas.height/2+20);
+    ctx.fillText("Tap to Restart", canvas.width/2, canvas.height/2+60);
+    ctx.textAlign="left";
+    drawLeaderboard();
+    return;
+  }
+  drawBall(); drawObs(); updBall(); updObs(); drawScore();
+  frame++; if(frame%80===0){ spawn(); score++; }
+  requestAnimationFrame(loop);
 }
 
-function drawGameOver() {
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, canvas.width, canva
+/* ---------------- INPUT ---------------- */
+canvas.addEventListener("pointerdown", ()=>{
+  document.getElementById("hint").style.display="none";
+  if(!started){ started=true; ball.dy=ball.j; return; }
+  if(gameOver){ location.reload(); return; }
+  ball.dy=ball.j;
+});
+
+/* ---------------- START ---------------- */
+loop();
+</script>
+
+</body>
+</html>
 
