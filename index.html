@@ -1,229 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Helix Jump 3D</title>
-<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEST</title>
 <style>
-html,body{
+body{
   margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#87ceeb;
-  touch-action:none;
-}
-canvas{
-  position:fixed;
-  inset:0;
-}
-#ui,#hint,#revive{
-  position:fixed;
-  z-index:10;
-  color:#fff;
-  font-family:Arial, sans-serif;
-  background:rgba(0,0,0,0.45);
-  padding:8px 12px;
-  border-radius:8px;
-}
-#ui{top:10px;left:10px}
-#hint{top:10px;left:50%;transform:translateX(-50%)}
-#revive{
-  top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  display:none;text-align:center
-}
-button{
-  margin-top:10px;
-  padding:8px 14px;
-  border:none;border-radius:6px;
-  background:#00cc44;color:#000;font-weight:bold
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:black;
+  color:#00ff00;
+  font-size:26px;
+  font-family:Arial;
 }
 </style>
 </head>
-
 <body>
 
-<div id="ui">
-Score: <span id="score">0</span><br>
-Coins: <span id="coins">0</span>
-</div>
+<div id="txt">HELIX GAME LOADING...</div>
 
-<div id="hint">Tap = Jump · Drag = Rotate</div>
-
-<div id="revive">
-  <div>💀 Game Over</div>
-  <div>Use 20 Coins to Revive?</div>
-  <button id="yes">YES</button>
-  <button id="no">NO</button>
-</div>
-
-<script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
 <script>
-/* ================= TELEGRAM SAFE INIT ================= */
-if (window.Telegram && Telegram.WebApp) {
-  Telegram.WebApp.ready();
-  Telegram.WebApp.expand();
-  Telegram.WebApp.setHeaderColor("#000000");
-  Telegram.WebApp.setBackgroundColor("#87ceeb");
-}
-
-/* ================= STORAGE ================= */
-let coins = parseInt(localStorage.getItem("coins") || "0");
-document.getElementById("coins").textContent = coins;
-
-/* ================= UI ================= */
-let score = 0;
-const scoreEl = document.getElementById("score");
-const coinsEl = document.getElementById("coins");
-const addScore = v => scoreEl.textContent = (score += v);
-const addCoins = v => {
-  coins += v;
-  localStorage.setItem("coins", coins);
-  coinsEl.textContent = coins;
-};
-
-/* ================= THREE CORE ================= */
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-
-const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(4.5,6,6);
-
-const renderer = new THREE.WebGLRenderer({antialias:false});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.2));
-renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled = false;
-document.body.appendChild(renderer.domElement);
-
-/* ================= LIGHT ================= */
-scene.add(new THREE.AmbientLight(0xffffff,0.8));
-const dl = new THREE.DirectionalLight(0xffffff,0.6);
-dl.position.set(5,10,5);
-scene.add(dl);
-
-/* ================= TOWER ================= */
-scene.add(new THREE.Mesh(
-  new THREE.CylinderGeometry(1.2,1.2,22,24),
-  new THREE.MeshStandardMaterial({color:0x00ffd5})
-));
-
-/* ================= PLATFORMS ================= */
-const platforms=[];
-const types=[
-  {t:"safe",c:0x00cc44},
-  {t:"break",c:0xffcc00},
-  {t:"kill",c:0xff0000}
-];
-
-for(let i=0;i<14;i++){
-  const cfg=types[Math.floor(Math.random()*types.length)];
-  const p=new THREE.Mesh(
-    new THREE.TorusGeometry(1.55,0.22,12,32),
-    new THREE.MeshStandardMaterial({color:cfg.c})
-  );
-  p.rotation.x=Math.PI/2;
-  p.position.y=6-i*1.4;
-  p.userData={type:cfg.t,broken:false};
-  scene.add(p);
-  platforms.push(p);
-}
-
-/* ================= BALL ================= */
-const ball=new THREE.Mesh(
-  new THREE.SphereGeometry(0.34,24,24),
-  new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x220000})
-);
-ball.position.set(2.1,6.5,0);
-scene.add(ball);
-
-/* ================= PHYSICS ================= */
-let vel=0,dead=false;
-const gravity=-0.015;
-const jumpForce=0.22;
-
-/* ================= CONTROLS (OPTIMIZED) ================= */
-let drag=false,lastX=0;
-addEventListener("pointerdown",e=>{
-  if(dead) return;
-  drag=true;
-  lastX=e.clientX;
-  vel=jumpForce;
+document.getElementById("txt").innerText = "✅ PAGE IS WORKING";
+document.body.addEventListener("click",()=>{
+  document.body.style.background="green";
+  document.getElementById("txt").innerText="CLICK DETECTED";
 });
-addEventListener("pointerup",()=>drag=false);
-addEventListener("pointermove",e=>{
-  if(!drag) return;
-  const dx=e.clientX-lastX;
-  const rot=Math.max(Math.min(dx*0.003,0.03),-0.03);
-  for(let i=0;i<platforms.length;i++){
-    platforms[i].rotation.z+=rot;
-  }
-  lastX=e.clientX;
-});
+</script>
 
-/* ================= REVIVE ================= */
-const reviveBox=document.getElementById("revive");
-document.getElementById("yes").onclick=()=>{
-  if(coins>=20){
-    addCoins(-20);
-    reviveBox.style.display="none";
-    ball.position.y+=2;
-    vel=jumpForce;
-    dead=false;
-  }
-};
-document.getElementById("no").onclick=resetGame;
+</body>
+</html>
 
-function resetGame(){
-  reviveBox.style.display="none";
-  ball.position.set(2.1,6.5,0);
-  vel=0;
-  dead=false;
-  score=0;
-  scoreEl.textContent=0;
-  camera.position.set(4.5,6,6);
-}
-
-/* ================= RESIZE ================= */
-addEventListener("resize",()=>{
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
-
-/* ================= MAIN LOOP ================= */
-function loop(){
-  requestAnimationFrame(loop);
-  if(dead){
-    renderer.render(scene,camera);
-    return;
-  }
-
-  vel+=gravity;
-  ball.position.y+=vel;
-
-  // camera follow (smooth + light)
-  const targetY=ball.position.y+3;
-  camera.position.y+=(targetY-camera.position.y)*0.04;
-  camera.lookAt(0,targetY-2,0);
-
-  // collision (optimized)
-  for(let i=0;i<platforms.length;i++){
-    const p=platforms[i];
-    if(!p.userData.broken &&
-      ball.position.y>p.position.y-0.05 &&
-      ball.position.y<p.position.y+0.18 &&
-      vel<0){
-      if(p.userData.type==="safe"){
-        vel=jumpForce;
-        addScore(5);
-        addCoins(5);
-      }
-      if(p.userData.type==="break"){
-        scene.remove(p);
-        p.use
 
 
 
