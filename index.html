@@ -3,8 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Helix Jump 3D</title>
-
-<!-- 🔥 TELEGRAM SAFE VIEWPORT -->
 <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <style>
@@ -19,9 +17,7 @@ html,body{
 }
 canvas{
   position:fixed;
-  top:0;left:0;
-  width:100%;
-  height:100%;
+  inset:0;
 }
 #ui,#hint,#revive{
   position:fixed;
@@ -65,26 +61,13 @@ Coins: <span id="coins">0</span>
 </div>
 
 <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
-
 <script>
-/* ================= TELEGRAM INIT ================= */
+/* ================= TELEGRAM SAFE INIT ================= */
 if (window.Telegram && Telegram.WebApp) {
   Telegram.WebApp.ready();
-
-  // FULLSCREEN
   Telegram.WebApp.expand();
-
-  // MATCH COLORS
   Telegram.WebApp.setHeaderColor("#000000");
   Telegram.WebApp.setBackgroundColor("#87ceeb");
-
-  // BACK BUTTON HANDLING
-  Telegram.WebApp.BackButton.show();
-  Telegram.WebApp.BackButton.onClick(() => {
-    if (confirm("Exit game?")) {
-      Telegram.WebApp.close();
-    }
-  });
 }
 
 /* ================= STORAGE ================= */
@@ -102,73 +85,81 @@ const addCoins = v => {
   coinsEl.textContent = coins;
 };
 
-/* ================= THREE SETUP ================= */
+/* ================= THREE CORE ================= */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(5,6,5);
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(4.5,6,6);
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.2));
-renderer.setSize(innerWidth, innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:false});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = false;
 document.body.appendChild(renderer.domElement);
 
 /* ================= LIGHT ================= */
-scene.add(new THREE.AmbientLight(0xffffff,0.7));
-const dl = new THREE.DirectionalLight(0xffffff,0.8);
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const dl = new THREE.DirectionalLight(0xffffff,0.6);
 dl.position.set(5,10,5);
 scene.add(dl);
 
 /* ================= TOWER ================= */
 scene.add(new THREE.Mesh(
-  new THREE.CylinderGeometry(1.2,1.2,20,32),
+  new THREE.CylinderGeometry(1.2,1.2,22,24),
   new THREE.MeshStandardMaterial({color:0x00ffd5})
 ));
 
 /* ================= PLATFORMS ================= */
-const platforms=[], types=[
+const platforms=[];
+const types=[
   {t:"safe",c:0x00cc44},
   {t:"break",c:0xffcc00},
   {t:"kill",c:0xff0000}
 ];
 
 for(let i=0;i<14;i++){
-  const cfg = types[Math.floor(Math.random()*types.length)];
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.6,0.25,16,50),
+  const cfg=types[Math.floor(Math.random()*types.length)];
+  const p=new THREE.Mesh(
+    new THREE.TorusGeometry(1.55,0.22,12,32),
     new THREE.MeshStandardMaterial({color:cfg.c})
   );
-  ring.rotation.x = Math.PI/2;
-  ring.position.y = 6 - i*1.3;
-  ring.userData = {type:cfg.t, broken:false};
-  scene.add(ring);
-  platforms.push(ring);
+  p.rotation.x=Math.PI/2;
+  p.position.y=6-i*1.4;
+  p.userData={type:cfg.t,broken:false};
+  scene.add(p);
+  platforms.push(p);
 }
 
 /* ================= BALL ================= */
-const ball = new THREE.Mesh(
-  new THREE.SphereGeometry(0.35,32,32),
-  new THREE.MeshStandardMaterial({color:0xff0000, emissive:0x330000})
+const ball=new THREE.Mesh(
+  new THREE.SphereGeometry(0.34,24,24),
+  new THREE.MeshStandardMaterial({color:0xff0000,emissive:0x220000})
 );
-ball.position.set(2.2,6.5,0);
+ball.position.set(2.1,6.5,0);
 scene.add(ball);
 
 /* ================= PHYSICS ================= */
-let vel = 0, dead = false;
-const gravity = -0.02;
+let vel=0,dead=false;
+const gravity=-0.015;
+const jumpForce=0.22;
 
-/* ================= CONTROLS ================= */
+/* ================= CONTROLS (OPTIMIZED) ================= */
 let drag=false,lastX=0;
 addEventListener("pointerdown",e=>{
   if(dead) return;
-  drag=true; lastX=e.clientX; vel=.28;
+  drag=true;
+  lastX=e.clientX;
+  vel=jumpForce;
 });
 addEventListener("pointerup",()=>drag=false);
 addEventListener("pointermove",e=>{
   if(!drag) return;
   const dx=e.clientX-lastX;
-  platforms.forEach(p=>p.rotation.z+=dx*.005);
+  const rot=Math.max(Math.min(dx*0.003,0.03),-0.03);
+  for(let i=0;i<platforms.length;i++){
+    platforms[i].rotation.z+=rot;
+  }
   lastX=e.clientX;
 });
 
@@ -179,17 +170,20 @@ document.getElementById("yes").onclick=()=>{
     addCoins(-20);
     reviveBox.style.display="none";
     ball.position.y+=2;
-    vel=.25; dead=false;
+    vel=jumpForce;
+    dead=false;
   }
 };
 document.getElementById("no").onclick=resetGame;
 
 function resetGame(){
   reviveBox.style.display="none";
-  ball.position.set(2.2,6.5,0);
-  vel=0; dead=false;
-  score=0; scoreEl.textContent=0;
-  camera.position.set(5,6,5);
+  ball.position.set(2.1,6.5,0);
+  vel=0;
+  dead=false;
+  score=0;
+  scoreEl.textContent=0;
+  camera.position.set(4.5,6,6);
 }
 
 /* ================= RESIZE ================= */
@@ -199,44 +193,38 @@ addEventListener("resize",()=>{
   renderer.setSize(innerWidth,innerHeight);
 });
 
-/* ================= LOOP ================= */
+/* ================= MAIN LOOP ================= */
 function loop(){
   requestAnimationFrame(loop);
-  if(dead){ renderer.render(scene,camera); return; }
-
-  vel += gravity;
-  ball.position.y += vel;
-
-  camera.position.y += (ball.position.y+3-camera.position.y)*.08;
-  camera.lookAt(0, ball.position.y-1, 0);
-
-  platforms.forEach(p=>{
-    if(!p.userData.broken &&
-      ball.position.y>p.position.y &&
-      ball.position.y<p.position.y+.25 && vel<0){
-      if(p.userData.type==="safe"){
-        vel=.28; addScore(5); addCoins(5);
-      }
-      if(p.userData.type==="break"){
-        scene.remove(p); p.userData.broken=true;
-        vel=.28; addScore(10); addCoins(10);
-      }
-      if(p.userData.type==="kill"){
-        dead=true; reviveBox.style.display="block";
-      }
-    }
-  });
-
-  if(ball.position.y<-12 && !dead){
-    dead=true; reviveBox.style.display="block";
+  if(dead){
+    renderer.render(scene,camera);
+    return;
   }
 
-  renderer.render(scene,camera);
-}
-loop();
-</script>
-</body>
-</html>
+  vel+=gravity;
+  ball.position.y+=vel;
+
+  // camera follow (smooth + light)
+  const targetY=ball.position.y+3;
+  camera.position.y+=(targetY-camera.position.y)*0.04;
+  camera.lookAt(0,targetY-2,0);
+
+  // collision (optimized)
+  for(let i=0;i<platforms.length;i++){
+    const p=platforms[i];
+    if(!p.userData.broken &&
+      ball.position.y>p.position.y-0.05 &&
+      ball.position.y<p.position.y+0.18 &&
+      vel<0){
+      if(p.userData.type==="safe"){
+        vel=jumpForce;
+        addScore(5);
+        addCoins(5);
+      }
+      if(p.userData.type==="break"){
+        scene.remove(p);
+        p.use
+
 
 
 
