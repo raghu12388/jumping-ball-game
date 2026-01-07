@@ -2,200 +2,168 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 <title>Helix Jump Mini</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 
 <style>
 html,body{
   margin:0;
-  width:100%;
-  height:100%;
   overflow:hidden;
-  background:#9ad9ea;
-  touch-action:none;
+  background:#8fd3f4;
   font-family:Arial;
 }
+
+/* UI */
 #score{
   position:fixed;
-  top:20px;
-  left:50%;
-  transform:translateX(-50%);
-  font-size:42px;
+  top:15px;
+  width:100%;
+  text-align:center;
+  font-size:32px;
   font-weight:bold;
+  display:none;
 }
+
 #overlay{
   position:fixed;
   inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
+  display:flex;
   flex-direction:column;
-  background:rgba(0,0,0,.45);
-  color:#fff;
-  font-size:28px;
+  justify-content:center;
+  align-items:center;
+  background:rgba(0,0,0,.25);
 }
+
+button{
+  padding:14px 28px;
+  font-size:20px;
+  border:none;
+  border-radius:8px;
+  margin:10px;
+  cursor:pointer;
+}
+
+#startBtn{background:#00e676}
+#restartBtn{background:#ff5252;color:#fff;display:none}
 </style>
 </head>
 
 <body>
+
 <div id="score">0</div>
-<div id="overlay">Game Over<br><span>Tap to Restart</span></div>
+
+<div id="overlay">
+  <button id="startBtn">▶ START</button>
+  <button id="restartBtn">🔄 RESTART</button>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* SCENE */
+/* ===== SCENE ===== */
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x9ad9ea);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,50);
+camera.position.set(0,6,8);
+camera.lookAt(0,0,0);
 
-/* CAMERA */
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,100);
-camera.position.set(0,4,7);
-
-/* RENDERER */
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 document.body.appendChild(renderer.domElement);
 
-/* LIGHT */
-scene.add(new THREE.AmbientLight(0xffffff,.7));
-const d=new THREE.DirectionalLight(0xffffff,.6);
-d.position.set(5,10,5);
-scene.add(d);
+scene.add(new THREE.AmbientLight(0xffffff,1));
 
-/* GROUP */
-const towerGroup=new THREE.Group();
-scene.add(towerGroup);
-
-/* TOWER */
-const tower=new THREE.Mesh(
-  new THREE.CylinderGeometry(.9,.9,20,32),
-  new THREE.MeshStandardMaterial({color:0x6fe7f5})
+/* ===== OBJECTS ===== */
+const pole=new THREE.Mesh(
+  new THREE.CylinderGeometry(.6,.6,20,16),
+  new THREE.MeshStandardMaterial({color:0x00ffff})
 );
-tower.position.y=-4;
-towerGroup.add(tower);
+scene.add(pole);
 
-/* RINGS (BOX SEGMENTS – STABLE) */
-const rings=[];
-let y=4;
-
-for(let i=0;i<12;i++){
-  const ring=new THREE.Group();
-  const parts=8;
-  const gap=Math.floor(Math.random()*parts);
-
-  for(let j=0;j<parts;j++){
-    if(j===gap) continue;
-
-    const seg=new THREE.Mesh(
-      new THREE.BoxGeometry(0.9,0.25,0.6),
-      new THREE.MeshStandardMaterial({
-        color:i%2?0x00ff66:0xffcc00
-      })
-    );
-    const angle=j*(Math.PI*2/parts);
-    seg.position.set(
-      Math.cos(angle)*1.2,
-      y,
-      Math.sin(angle)*1.2
-    );
-    seg.rotation.y=angle;
-    ring.add(seg);
-  }
-
-  y-=1.5;
-  towerGroup.add(ring);
-  rings.push(ring);
-}
-
-/* BALL */
 const ball=new THREE.Mesh(
-  new THREE.SphereGeometry(.3,32,32),
-  new THREE.MeshStandardMaterial({color:0xff3333})
+  new THREE.SphereGeometry(.25,16,16),
+  new THREE.MeshStandardMaterial({color:0xff0000})
 );
-ball.position.set(1.2,5,0);
 scene.add(ball);
 
-/* GAME LOGIC */
-let velocity=0;
-const gravity=-0.016;
-let score=0;
-let gameOver=false;
-
-const scoreEl=document.getElementById("score");
-const overlay=document.getElementById("overlay");
-
-/* INPUT */
-function jump(){
-  if(gameOver){ location.reload(); return; }
-  velocity=0.25;
+const rings=[];
+function createRings(){
+  rings.length=0;
+  for(let i=0;i<12;i++){
+    const r=new THREE.Mesh(
+      new THREE.TorusGeometry(1,.25,8,24),
+      new THREE.MeshStandardMaterial({color:i%2?0xffcc00:0x00ff66})
+    );
+    r.rotation.x=Math.PI/2;
+    r.position.y=i*-1.5;
+    scene.add(r);
+    rings.push(r);
+  }
 }
-addEventListener("click",jump);
-addEventListener("touchstart",jump);
 
-/* ROTATION */
-let drag=false,lastX=0;
-addEventListener("mousedown",e=>{drag=true;lastX=e.clientX});
-addEventListener("mousemove",e=>{
-  if(!drag) return;
-  towerGroup.rotation.y+=(e.clientX-lastX)*0.01;
-  lastX=e.clientX;
+/* ===== GAME STATE ===== */
+let vy=0,gravity=-0.015;
+let score=0;
+let running=false;
+
+/* ===== UI ===== */
+const scoreUI=document.getElementById("score");
+const overlay=document.getElementById("overlay");
+const startBtn=document.getElementById("startBtn");
+const restartBtn=document.getElementById("restartBtn");
+
+/* ===== SOUND ===== */
+const jumpSound=new Audio("jump.mp3");
+jumpSound.volume=.4;
+
+/* ===== FUNCTIONS ===== */
+function startGame(){
+  overlay.style.display="none";
+  scoreUI.style.display="block";
+  restartBtn.style.display="none";
+  resetGame();
+  running=true;
+}
+
+function resetGame(){
+  score=0;
+  scoreUI.innerText=0;
+  vy=0;
+  ball.position.set(.8,5,0);
+  createRings();
+}
+
+function gameOver(){
+  running=false;
+  overlay.style.display="flex";
+  startBtn.style.display="none";
+  restartBtn.style.display="block";
+}
+
+/* ===== INPUT ===== */
+addEventListener("pointerdown",()=>{
+  if(!running) return;
+  vy=0.25;
+  jumpSound.currentTime=0;
+  jumpSound.play();
 });
-addEventListener("mouseup",()=>drag=false);
 
-addEventListener("touchstart",e=>{drag=true;lastX=e.touches[0].clientX});
-addEventListener("touchmove",e=>{
-  if(!drag) return;
-  towerGroup.rotation.y+=(e.touches[0].clientX-lastX)*0.01;
-  lastX=e.touches[0].clientX;
-});
-addEventListener("touchend",()=>drag=false);
-
-/* LOOP */
+/* ===== LOOP ===== */
 function animate(){
   requestAnimationFrame(animate);
-  if(gameOver) return;
+  if(!running){ renderer.render(scene,camera); return; }
 
-  velocity+=gravity;
-  ball.position.y+=velocity;
+  vy+=gravity;
+  ball.position.y+=vy;
 
   rings.forEach(r=>{
-    r.children.forEach(seg=>{
-      const p=seg.getWorldPosition(new THREE.Vector3());
-      if(
-        ball.position.y<p.y+.2 &&
-        ball.position.y>p.y-.2 &&
-        velocity<0
-      ){
-        velocity=0.25;
-        score++;
-        scoreEl.textContent=score;
-      }
-    });
+    if(Math.abs(ball.position.y-r.position.y)<.25 && vy<0){
+      vy=0.22;
+      score++;
+      scoreUI.innerText=score;
+    }
   });
 
-  if(ball.position.y<-10){
-    gameOver=true;
-    overlay.style.display="flex";
-  }
-
-  camera.position.y=ball.position.y+3;
-  camera.lookAt(ball.position.x,ball.position.y,0);
-
-  renderer.render(scene,camera);
-}
-animate();
-
-/* RESIZE */
-addEventListener("resize",()=>{
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
-</script>
-</body>
-</html>
 
 
 
