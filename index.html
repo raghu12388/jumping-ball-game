@@ -3,106 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <title>Helix Jump 3D</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: #87ceeb; /* sky */
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#87CEEB;
+  touch-action:none;
 }
-canvas { display: block; }
+#hint{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  color:#fff;
+  font-family:Arial;
+  background:rgba(0,0,0,.4);
+  padding:6px 12px;
+  border-radius:6px;
+  z-index:10;
+}
 </style>
 </head>
+
 <body>
+<div id="hint">Tap / Click to Jump · Drag to Rotate</div>
 
 <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* ---------- SCENE ---------- */
+// SCENE
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
-/* ---------- CAMERA (FIXED) ---------- */
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-/* 🔥 IMPORTANT: camera closer & centered */
-camera.position.set(0, 5, 8);
-camera.lookAt(0, 0, 0);
+// CAMERA
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(6,6,6);
+camera.lookAt(0,0,0);
 
-/* ---------- RENDERER ---------- */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+// RENDERER
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ---------- LIGHT (STRONG) ---------- */
-const ambient = new THREE.AmbientLight(0xffffff, 1);
-scene.add(ambient);
+// LIGHT
+scene.add(new THREE.AmbientLight(0xffffff,0.7));
+const light = new THREE.DirectionalLight(0xffffff,0.8);
+light.position.set(5,10,5);
+scene.add(light);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-dirLight.position.set(5, 10, 5);
-scene.add(dirLight);
-
-/* ---------- TOWER (BIG & VISIBLE) ---------- */
+// TOWER
 const tower = new THREE.Mesh(
-  new THREE.CylinderGeometry(1.2, 1.2, 12, 32),
-  new THREE.MeshStandardMaterial({ color: 0x2ec4b6 })
+  new THREE.CylinderGeometry(1.2,1.2,12,32),
+  new THREE.MeshStandardMaterial({color:0x00ffd5})
 );
-tower.position.y = 0;
 scene.add(tower);
 
-/* ---------- BALL (VISIBLE POSITION) ---------- */
-const ball = new THREE.Mesh(
-  new THREE.SphereGeometry(0.4, 32, 32),
-  new THREE.MeshStandardMaterial({ color: 0xff006e })
-);
-ball.position.set(0, 4, 0);
-scene.add(ball);
+// PLATFORMS
+const platforms = [];
+for(let i=0;i<10;i++){
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.6,0
 
-/* ---------- HELP GRID (DEBUG) ---------- */
-const grid = new THREE.GridHelper(10, 10);
-scene.add(grid);
-
-/* ---------- PHYSICS ---------- */
-let velocity = 0;
-const gravity = -0.01;
-
-/* ---------- RESIZE ---------- */
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-/* ---------- LOOP ---------- */
-function animate() {
-  requestAnimationFrame(animate);
-
-  velocity += gravity;
-  ball.position.y += velocity;
-
-  if (ball.position.y < -4) {
-    ball.position.y = 4;
-    velocity = 0;
-  }
-
-  renderer.render(scene, camera);
-}
-animate();
-
-/* ---------- TAP JUMP ---------- */
-window.addEventListener("pointerdown", () => {
-  velocity = 0.18;
-});
-</script>
-
-</body>
-</html>
 
 
 
