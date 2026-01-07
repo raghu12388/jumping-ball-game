@@ -99,10 +99,7 @@ function animate(){
  requestAnimationFrame(animate);
  if(running){
   velocity+=gravity;
-  ball.position.y+=velocity;
-  if(ball.position.y<5){
-   ball.position.y=5;
-   velocity=0;
+  ball.position.y+=velocity
    score++;
    document.getElementById("score").innerText=score;
   }
