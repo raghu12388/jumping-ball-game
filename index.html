@@ -63,10 +63,11 @@ const addScore = v => scoreEl.textContent = (score += v);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
+// CAMERA
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
 camera.position.set(5,6,5);
-camera.lookAt(0,0,0);
 
+// RENDERER
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -79,36 +80,23 @@ scene.add(dLight);
 
 // ================= TOWER =================
 scene.add(new THREE.Mesh(
-  new THREE.CylinderGeometry(1.2,1.2,12,32),
+  new THREE.CylinderGeometry(1.2,1.2,20,32),
   new THREE.MeshStandardMaterial({color:0x00ffd5})
 ));
 
 // ================= PLATFORMS =================
 const platforms=[];
 const colors = [
-  {type:"safe", color:0x00cc44},   // green
-  {type:"break", color:0xffcc00},  // yellow
-  {type:"kill", color:0xff0000}    // red
+  {type:"safe", color:0x00cc44},
+  {type:"break", color:0xffcc00},
+  {type:"kill", color:0xff0000}
 ];
 
-for(let i=0;i<10;i++){
+for(let i=0;i<14;i++){
   const cfg = colors[Math.floor(Math.random()*colors.length)];
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.6,0.25,16,50),
-    new THREE.MeshStandardMaterial({color:cfg.color})
-  );
-  ring.rotation.x = Math.PI/2;
-  ring.position.y = 4 - i*1.2;
-  ring.userData.type = cfg.type;
-  ring.userData.broken = false;
-  scene.add(ring);
-  platforms.push(ring);
-}
+    new THREE.TorusGeomet
 
-// ================= BALL =================
-const ball = new THREE.Mesh(
-  new THREE.SphereGeometry(0.35,32,32),
-  new THREE.MeshStandardMaterial({color:0xff0000, emissive:
 
 
 
