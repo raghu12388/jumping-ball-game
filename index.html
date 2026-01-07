@@ -2,30 +2,37 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump Telegram</title>
+<title>Helix Jump Pro</title>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
 <style>
 html,body{margin:0;overflow:hidden;background:#8fd3f4;font-family:sans-serif}
-#ui{position:fixed;top:10px;width:100%;text-align:center;font-size:28px;font-weight:bold}
+#score{position:fixed;top:10px;width:100%;text-align:center;font-size:26px;font-weight:bold}
+#coins{position:fixed;top:45px;width:100%;text-align:center;font-size:18px}
 #overlay{
-  position:fixed;inset:0;display:flex;flex-direction:column;
-  justify-content:center;align-items:center;background:rgba(0,0,0,.3)
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  background:rgba(0,0,0,.35);z-index:10
 }
 button{
-  padding:14px 28px;font-size:20px;border:none;border-radius:8px;
-  margin:10px;cursor:pointer
+  padding:14px 30px;font-size:20px;
+  border:none;border-radius:10px;
+  cursor:pointer;margin:8px
 }
-#start{background:#00e676}
-#restart{background:#ff5252;color:white;display:none}
+#startBtn{background:#00e676}
+#restartBtn{background:#ff5252;color:#fff;display:none}
 </style>
 </head>
 
 <body>
 
-<div id="ui">0</div>
+<div id="score">0</div>
+<div id="coins">💰 0</div>
+
 <div id="overlay">
-  <button id="start">▶ START</button>
-  <button id="restart">🔄 RESTART</button>
+  <button id="startBtn">▶ START GAME</button>
+  <button id="restartBtn">🔄 RESTART</button>
 </div>
 
 <audio id="bgm" loop>
@@ -39,10 +46,20 @@ button{
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 
+/* ===== FIREBASE (ADD YOUR CONFIG) ===== */
+/*
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = { YOUR_CONFIG };
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+*/
+
 /* ===== SCENE ===== */
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,50);
-camera.position.set(0,7,8);
+camera.position.set(0,6,8);
 camera.lookAt(0,0,0);
 
 const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -52,7 +69,7 @@ document.body.appendChild(renderer.domElement);
 
 scene.add(new THREE.AmbientLight(0xffffff,1));
 
-/* ===== OBJECTS ===== */
+/* ===== TOWER ===== */
 const tower=new THREE.Group();
 scene.add(tower);
 
@@ -62,21 +79,22 @@ const pole=new THREE.Mesh(
 );
 tower.add(pole);
 
+/* ===== BALL ===== */
 const ball=new THREE.Mesh(
   new THREE.SphereGeometry(.25,16,16),
-  new THREE.MeshStandardMaterial({color:0xff4444})
+  new THREE.MeshStandardMaterial({color:0xff3333})
 );
 scene.add(ball);
 
-/* ===== RINGS WITH GAPS ===== */
+/* ===== RINGS ===== */
 let rings=[];
 function buildRings(){
   rings.forEach(r=>tower.remove(r));
   rings=[];
-  for(let i=0;i<15;i++){
+  for(let i=0;i<18;i++){
     const ring=new THREE.Group();
     for(let j=0;j<6;j++){
-      if(Math.random()<0.25) continue; // GAP
+      if(Math.random()<0.3) continue;
       const part=new THREE.Mesh(
         new THREE.BoxGeometry(1.2,.3,.5),
         new THREE.MeshStandardMaterial({color:i%2?0x00ff66:0xffcc00})
@@ -86,19 +104,132 @@ function buildRings(){
       part.rotation.y=a;
       ring.add(part);
     }
-    ring.position.y=i*-1.6;
+    ring.position.y=i*-1.5;
     tower.add(ring);
     rings.push(ring);
   }
 }
 
 /* ===== GAME STATE ===== */
-let vy=0,gravity=-0.015,score=0,combo=0;
 let running=false;
+let vy=0;
+let gravity=-0.016;
+let score=0;
+let coins=0;
+let combo=0;
 
 /* ===== UI ===== */
-const ui=document.getElementById("ui");
-const overlay=document.getElemen
+const scoreUI=document.getElementById("score");
+const coinUI=document.getElementById("coins");
+const overlay=document.getElementById("overlay");
+const startBtn=document.getElementById("startBtn");
+const restartBtn=document.getElementById("restartBtn");
+const bgm=document.getElementById("bgm");
+
+/* ===== SPLASH ===== */
+function splash(y){
+  const s=new THREE.Mesh(
+    new THREE.CircleGeometry(.4,16),
+    new THREE.MeshBasicMaterial({color:0x6633ff,transparent:true,opacity:.8})
+  );
+  s.rotation.x=-Math.PI/2;
+  s.position.y=y+.01;
+  scene.add(s);
+  setTimeout(()=>scene.remove(s),300);
+}
+
+/* ===== INPUT ===== */
+let dragging=false,lastX=0;
+
+renderer.domElement.addEventListener("pointerdown",e=>{
+  if(!running) return;
+  dragging=true;
+  lastX=e.clientX;
+});
+
+renderer.domElement.addEventListener("pointerup",()=>dragging=false);
+
+renderer.domElement.addEventListener("pointermove",e=>{
+  if(dragging){
+    tower.rotation.y+=(e.clientX-lastX)*0.005;
+    lastX=e.clientX;
+  }
+});
+
+renderer.domElement.addEventListener("click",()=>{
+  if(!running) return;
+  vy=0.3;
+});
+
+/* ===== GAME ===== */
+function resetGame(){
+  score=0;coins=0;combo=0;
+  scoreUI.innerText=0;
+  coinUI.innerText="💰 0";
+  vy=0;
+  ball.position.set(.8,4,0);
+  buildRings();
+}
+
+function startGame(){
+  overlay.style.display="none";
+  restartBtn.style.display="none";
+  startBtn.style.display="none";
+  resetGame();
+  bgm.currentTime=0;
+  bgm.play();
+  running=true;
+}
+
+function gameOver(){
+  running=false;
+  overlay.style.display="flex";
+  restartBtn.style.display="block";
+  bgm.pause();
+
+  tg?.sendData(JSON.stringify({score,coins}));
+}
+
+/* ===== LOOP ===== */
+function animate(){
+  requestAnimationFrame(animate);
+
+  if(!running){
+    renderer.render(scene,camera);
+    return;
+  }
+
+  vy+=gravity;
+  ball.position.y+=vy;
+
+  for(const r of rings){
+    if(Math.abs(ball.position.y-r.position.y)<.28 && vy<0){
+      vy=0.33+combo*0.02;
+      combo++;
+      score+=1+combo;
+      coins+=combo;
+      scoreUI.innerText=score;
+      coinUI.innerText="💰 "+coins;
+      splash(r.position.y);
+      break;
+    }
+  }
+
+  if(ball.position.y<-10) gameOver();
+
+  renderer.render(scene,camera);
+}
+animate();
+
+/* ===== BUTTONS ===== */
+startBtn.onclick=()=>startGame();
+restartBtn.onclick=()=>startGame();
+
+addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.s
+
 
 
 
