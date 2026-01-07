@@ -1,36 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Helix Jump Mini</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#87ceeb;font-family:sans-serif}
-  #ui{position:fixed;top:10px;left:0;right:0;text-align:center;font-size:28px;font-weight:bold;color:#000}
-  #overlay{
-    position:fixed;inset:0;
-    display:flex;align-items:center;justify-content:center;
-    background:rgba(0,0,0,.6);z-index:10
-  }
-  button{
-    font-size:22px;padding:15px 30px;border:none;border-radius:10px;
-    background:#00ff66;font-weight:bold;cursor:pointer
-  }
+html,body{margin:0;overflow:hidden;background:#1e3a40;font-family:Arial}
+#ui{
+ position:fixed;inset:0;display:flex;
+ align-items:center;justify-content:center;flex-direction:column;
+}
+button{
+ padding:15px 30px;font-size:20px;
+ border:none;border-radius:10px;
+ background:#00ff7f;cursor:pointer;
+}
+#score{position:fixed;top:15px;left:50%;transform:translateX(-50%);
+ color:#fff;font-size:28px;font-weight:bold}
 </style>
 </head>
 <body>
 
-<div id="ui">0</div>
+<div id="score">0</div>
+<div id="ui"><button id="start">START GAME</button></div>
 
-<div id="overlay">
-  <button id="startBtn">START GAME</button>
-</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
-<audio id="bgm" loop>
-  <source src="bg.mp3" type="audio/mpeg">
-</audio>
+<script>
+/* ========= GLOBAL ========= */
+let scene,camera,renderer;
+let tower,ball;
+let velocity=0, gravity=-0.018;
+let running=false, score=0;
+let drag=false,lastX=0;
 
-<script src="https://cdn.j
+/* ========= INIT ========= */
+init();
+animate();
+
+function init(){
+ scene=new THREE.Scene();
+
+ camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,100);
+ camera.position.set(0,6,10);
+
+ renderer=new THREE.WebGLRenderer({antialias:true});
+ renderer.setSize(innerWidth,innerHeight);
+ document.body.appendChild(renderer.domElement);
+
+ scene.add(new THREE.AmbientLight(0xffffff,1));
+
+ // tower
+ tower=new THREE.Group();
+ const pole=new THREE.Mesh(
+  new THREE.CylinderGeometry(0.6,0.8,20,16),
+  new THREE.MeshStandardMaterial({color:0x00ffff})
+ );
+ tower.add(pole);
+
+ for(let i=0;i<12;i++){
+  const ring=new THREE.Mesh(
+   new THREE.TorusGeometry(1.2,0.25,16,24),
+   new THREE.MeshStandardMaterial({color:i%2?0x00ff00:0xffcc00})
+  );
+  ring.position.y=5-i*1.5;
+  ring.rotation.x=Math.PI/2;
+  tower.add(ring);
+ }
+ scene.add(tower);
+
+ // ball
+ ball=new THREE.Mesh(
+  new THREE.SphereGeometry(0.35,16,16),
+  new THREE.MeshStandardMaterial({color:0xff0000})
+ );
+ ball.position.set(1.2,5,0);
+ scene.add(ball);
+}
+
+/* ========= INPUT ========= */
+renderer.domElement.addEventListener("pointerdown",e=>{
+ if(!running)return;
+ drag=true; lastX=e.clientX;
+});
+renderer.domElement.addEventListener("pointermove",e=>{
+ if(drag){
+  tower.rotation.y+=(e.clientX-lastX)*0.01;
+  lastX=e.clientX;
+ }
+});
+renderer.domElement.addEventListener("pointerup",()=>drag=false);
+renderer.domElement.addEventListener("click",()=>{
+ if(running) velocity=0.32;
+});
+
+/* ========= GAME LOOP ========= */
+function animate(){
+ requestAnimationFrame(animate);
+ if(running){
+  velocity+=gravity;
+  ball.position.y+=velocity;
+  if(ball.position.y<5){
+   ball.position.y=5;
+   velocity=0;
+   score++;
+   document.getElementById("score").innerText=score;
+  }
+ }
+ renderer.render(scene,camera);
+}
+
+/* ========= UI ========= */
+document.getElementById("start").onclick=()=>{
+ document.getElementById("ui").style.display="none";
+ running=true;
+};
+window.onresize=()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+};
+</script>
+</body>
+</html>
+
 
 
 
