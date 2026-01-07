@@ -4,98 +4,63 @@
 <meta charset="UTF-8">
 <title>Helix Jump 3D</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#87ceeb;
+html,body{margin:0;height:100%;overflow:hidden;background:#87ceeb}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%}
+#ui,#hint{
+  position:fixed;z-index:10;color:#fff;font-family:Arial;
+  background:rgba(0,0,0,.4);padding:8px 12px;border-radius:8px
 }
-canvas{
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-}
-#ui{
-  position:fixed;
-  top:10px;
-  left:10px;
-  color:#fff;
-  font-family:Arial;
-  background:rgba(0,0,0,0.4);
-  padding:8px 12px;
-  border-radius:8px;
-  z-index:10;
-}
-#hint{
-  position:fixed;
-  top:10px;
-  left:50%;
-  transform:translateX(-50%);
-  background:rgba(0,0,0,0.4);
-  color:#fff;
-  padding:6px 12px;
-  border-radius:6px;
-  font-family:Arial;
-  z-index:10;
-}
+#ui{top:10px;left:10px}
+#hint{top:10px;left:50%;transform:translateX(-50%)}
 </style>
 </head>
-
 <body>
 <div id="ui">Score: <span id="score">0</span></div>
 <div id="hint">Tap = Jump · Drag = Rotate</div>
 
 <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
-
 <script>
-// ================= UI =================
-let score = 0;
-const scoreEl = document.getElementById("score");
-const addScore = v => scoreEl.textContent = (score += v);
+// ======== SOUND (WebAudio) ========
+let audioReady=false;
+const ctx = new (window.AudioContext||window.webkitAudioContext)();
+function beep(freq=440,dur=0.08){
+  if(!audioReady) return;
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.frequency.value=freq; o.type="sine";
+  g.gain.value=0.12;
+  o.connect(g); g.connect(ctx.destination);
+  o.start(); setTimeout(()=>{o.stop()}, dur*1000);
+}
+const vibrate = ms => navigator.vibrate && navigator.vibrate(ms);
 
-// ================= SCENE =================
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+// ======== UI ========
+let score=0; const scoreEl=document.getElementById("score");
+const addScore=v=>scoreEl.textContent=(score+=v);
 
-// CAMERA
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
+// ======== SCENE ========
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x87ceeb);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,100);
 camera.position.set(5,6,5);
-
-// RENDERER
-const renderer = new THREE.WebGLRenderer({antialias:true});
+const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ================= LIGHT =================
-scene.add(new THREE.AmbientLight(0xffffff,0.7));
-const dLight = new THREE.DirectionalLight(0xffffff,0.8);
-dLight.position.set(5,10,5);
-scene.add(dLight);
+// LIGHT
+scene.add(new THREE.AmbientLight(0xffffff,.7));
+const dl=new THREE.DirectionalLight(0xffffff,.8); dl.position.set(5,10,5); scene.add(dl);
 
-// ================= TOWER =================
+// TOWER
 scene.add(new THREE.Mesh(
   new THREE.CylinderGeometry(1.2,1.2,20,32),
   new THREE.MeshStandardMaterial({color:0x00ffd5})
 ));
 
-// ================= PLATFORMS =================
-const platforms=[];
-const colors = [
-  {type:"safe", color:0x00cc44},
-  {type:"break", color:0xffcc00},
-  {type:"kill", color:0xff0000}
+// PLATFORMS
+const platforms=[], types=[
+  {t:"safe",c:0x00cc44},{t:"break",c:0xffcc00},{t:"kill",c:0xff0000}
 ];
 
-for(let i=0;i<14;i++){
-  const cfg = colors[Math.floor(Math.random()*colors.length)];
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeomet
 
 
 
