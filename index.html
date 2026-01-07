@@ -8,7 +8,6 @@
 <style>
 html,body{
   margin:0;
-  padding:0;
   width:100%;
   height:100%;
   overflow:hidden;
@@ -20,70 +19,69 @@ html,body{
   top:10px;
   left:50%;
   transform:translateX(-50%);
-  z-index:10;
   background:rgba(0,0,0,.6);
   color:#fff;
   padding:6px 14px;
   border-radius:8px;
   font-family:Arial;
+  z-index:10;
 }
 canvas{display:block;}
 </style>
 </head>
 
 <body>
-<div id="ui">Tap / Click to Jump</div>
+<div id="ui">Tap = Jump | Drag = Rotate</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* SCENE */
+/* ---------- SCENE ---------- */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
-/* CAMERA (FIXED) */
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  100
-);
+/* ---------- CAMERA ---------- */
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
 camera.position.set(0,3,6);
 
-/* RENDERER */
+/* ---------- RENDERER ---------- */
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 document.body.appendChild(renderer.domElement);
 
-/* LIGHT */
+/* ---------- LIGHT ---------- */
 scene.add(new THREE.AmbientLight(0xffffff,0.7));
-const sun = new THREE.DirectionalLight(0xffffff,0.6);
-sun.position.set(5,10,5);
-scene.add(sun);
+const light = new THREE.DirectionalLight(0xffffff,0.6);
+light.position.set(5,10,5);
+scene.add(light);
 
-/* TOWER */
+/* ---------- TOWER GROUP ---------- */
+const towerGroup = new THREE.Group();
+scene.add(towerGroup);
+
+/* CENTER CYLINDER */
 const tower = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.8,0.8,12,32),
+  new THREE.CylinderGeometry(0.8,0.8,14,32),
   new THREE.MeshStandardMaterial({color:0x00e5ff})
 );
-tower.position.y = -2;
-scene.add(tower);
+tower.position.y=-2;
+towerGroup.add(tower);
 
-/* PLATFORMS */
+/* ---------- PLATFORMS ---------- */
 const platforms=[];
-for(let i=0;i<8;i++){
+for(let i=0;i<10;i++){
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(1.1,0.22,16,32),
     new THREE.MeshStandardMaterial({color:i%2?0x00ff66:0xffcc00})
   );
-  ring.rotation.x = Math.PI/2;
-  ring.position.y = 2 - i*1.2;
-  scene.add(ring);
+  ring.rotation.x=Math.PI/2;
+  ring.position.y=2-i*1.3;
+  towerGroup.add(ring);
   platforms.push(ring);
 }
 
-/* BALL (VISIBLE FIX) */
+/* ---------- BALL ---------- */
 const ball = new THREE.Mesh(
   new THREE.SphereGeometry(0.28,32,32),
   new THREE.MeshStandardMaterial({color:0xff0000})
@@ -91,22 +89,47 @@ const ball = new THREE.Mesh(
 ball.position.set(1.1,3,0);
 scene.add(ball);
 
-/* PHYSICS */
+/* ---------- PHYSICS ---------- */
 let velocity=0;
 const gravity=-0.015;
 let canJump=true;
 
-/* INPUT */
+/* ---------- JUMP ---------- */
 function jump(){
   if(canJump){
     velocity=0.22;
     canJump=false;
   }
 }
-window.addEventListener("mousedown",jump);
-window.addEventListener("touchstart",jump);
+addEventListener("click",jump);
+addEventListener("touchstart",jump);
 
-/* LOOP */
+/* ---------- ROTATION (DRAG) ---------- */
+let isDragging=false;
+let lastX=0;
+
+function startDrag(e){
+  isDragging=true;
+  lastX = e.touches ? e.touches[0].clientX : e.clientX;
+}
+function drag(e){
+  if(!isDragging) return;
+  let x = e.touches ? e.touches[0].clientX : e.clientX;
+  let delta = (x-lastX)*0.01;
+  towerGroup.rotation.y += delta;
+  lastX=x;
+}
+function endDrag(){ isDragging=false; }
+
+addEventListener("mousedown",startDrag);
+addEventListener("mousemove",drag);
+addEventListener("mouseup",endDrag);
+
+addEventListener("touchstart",startDrag);
+addEventListener("touchmove",drag);
+addEventListener("touchend",endDrag);
+
+/* ---------- LOOP ---------- */
 function animate(){
   requestAnimationFrame(animate);
 
@@ -114,9 +137,10 @@ function animate(){
   ball.position.y+=velocity;
 
   platforms.forEach(p=>{
+    const worldPos = p.getWorldPosition(new THREE.Vector3());
     if(
-      ball.position.y < p.position.y+0.18 &&
-      ball.position.y > p.position.y-0.18 &&
+      ball.position.y < worldPos.y+0.18 &&
+      ball.position.y > worldPos.y-0.18 &&
       velocity<0
     ){
       velocity=0.22;
@@ -130,15 +154,15 @@ function animate(){
     canJump=true;
   }
 
-  camera.position.y = ball.position.y+2.5;
-  camera.lookAt(ball.position.x, ball.position.y, 0);
+  camera.position.y=ball.position.y+2.5;
+  camera.lookAt(ball.position.x,ball.position.y,0);
 
   renderer.render(scene,camera);
 }
 animate();
 
-/* RESIZE */
-window.addEventListener("resize",()=>{
+/* ---------- RESIZE ---------- */
+addEventListener("resize",()=>{
   camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
@@ -146,6 +170,7 @@ window.addEventListener("resize",()=>{
 </script>
 </body>
 </html>
+
 
 
 
