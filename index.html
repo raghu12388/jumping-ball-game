@@ -9,20 +9,28 @@
 html,body{
   margin:0;
   padding:0;
+  width:100%;
+  height:100%;
   overflow:hidden;
-  background:#87CEEB;
-  touch-action:none;
+  background:#87ceeb;
+}
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
 }
 #hint{
   position:fixed;
   top:10px;
   left:50%;
   transform:translateX(-50%);
+  background:rgba(0,0,0,0.4);
   color:#fff;
-  font-family:Arial;
-  background:rgba(0,0,0,.4);
   padding:6px 12px;
   border-radius:6px;
+  font-family:Arial;
   z-index:10;
 }
 </style>
@@ -39,20 +47,25 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
 // CAMERA
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 100);
-camera.position.set(6,6,6);
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
+camera.position.set(5,6,5);
 camera.lookAt(0,0,0);
 
 // RENDERER
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// LIGHT
+// LIGHTS
 scene.add(new THREE.AmbientLight(0xffffff,0.7));
-const light = new THREE.DirectionalLight(0xffffff,0.8);
-light.position.set(5,10,5);
-scene.add(light);
+const dLight = new THREE.DirectionalLight(0xffffff,0.8);
+dLight.position.set(5,10,5);
+scene.add(dLight);
 
 // TOWER
 const tower = new THREE.Mesh(
@@ -62,10 +75,85 @@ const tower = new THREE.Mesh(
 scene.add(tower);
 
 // PLATFORMS
-const platforms = [];
-for(let i=0;i<10;i++){
+const platforms=[];
+for(let i=0;i<8;i++){
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.6,0
+    new THREE.TorusGeometry(1.6,0.25,16,50),
+    new THREE.MeshStandardMaterial({color:i%2?0xffaa00:0x00cc44})
+  );
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = 4 - i*1.3;
+  scene.add(ring);
+  platforms.push(ring);
+}
+
+// BALL
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(0.35,32,32),
+  new THREE.MeshStandardMaterial({
+    color:0xff0000,
+    emissive:0x330000
+  })
+);
+ball.position.set(2.2,5,0);
+scene.add(ball);
+
+// PHYSICS
+let velocity = 0;
+const gravity = -0.02;
+
+// CONTROLS
+let drag=false,lastX=0;
+
+window.addEventListener("pointerdown",e=>{
+  drag=true;
+  lastX=e.clientX;
+  velocity = 0.25;
+});
+window.addEventListener("pointerup",()=>drag=false);
+window.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  const dx = e.clientX-lastX;
+  platforms.forEach(p=>p.rotation.z += dx*0.005);
+  lastX=e.clientX;
+});
+
+// RESIZE
+window.addEventListener("resize",()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// LOOP
+function animate(){
+  requestAnimationFrame(animate);
+
+  velocity += gravity;
+  ball.position.y += velocity;
+
+  platforms.forEach(p=>{
+    if(
+      ball.position.y > p.position.y &&
+      ball.position.y < p.position.y+0.2 &&
+      velocity < 0
+    ){
+      velocity = 0.25;
+    }
+  });
+
+  if(ball.position.y < -7){
+    ball.position.set(2.2,5,0);
+    velocity = 0;
+  }
+
+  renderer.render(scene,camera);
+}
+animate();
+</script>
+</body>
+</html>
+
 
 
 
