@@ -2,13 +2,16 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump Pro</title>
+<title>Helix Jump Ultimate</title>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
 <style>
 html,body{margin:0;overflow:hidden;background:#8fd3f4;font-family:sans-serif}
-#score{position:fixed;top:10px;width:100%;text-align:center;font-size:26px;font-weight:bold}
-#coins{position:fixed;top:45px;width:100%;text-align:center;font-size:18px}
+#score,#coins{
+  position:fixed;width:100%;text-align:center;font-weight:bold
+}
+#score{top:10px;font-size:26px}
+#coins{top:42px;font-size:18px}
 #overlay{
   position:fixed;inset:0;
   display:flex;flex-direction:column;
@@ -16,7 +19,7 @@ html,body{margin:0;overflow:hidden;background:#8fd3f4;font-family:sans-serif}
   background:rgba(0,0,0,.35);z-index:10
 }
 button{
-  padding:14px 30px;font-size:20px;
+  padding:14px 32px;font-size:20px;
   border:none;border-radius:10px;
   cursor:pointer;margin:8px
 }
@@ -35,30 +38,42 @@ button{
   <button id="restartBtn">🔄 RESTART</button>
 </div>
 
-<audio id="bgm" loop>
-  <source src="music.mp3" type="audio/mpeg">
-</audio>
+<audio id="bgm" loop src="music.mp3"></audio>
+<audio id="jumpSnd" src="jump.mp3"></audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-/* ===== TELEGRAM ===== */
+/* ================= TELEGRAM ================= */
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 
-/* ===== FIREBASE (ADD YOUR CONFIG) ===== */
-/*
+/* ================= FIREBASE (ADD CONFIG) =================
+<script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-const firebaseConfig = { YOUR_CONFIG };
+const firebaseConfig = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-*/
+function saveScore(s){
+  push(ref(db,"scores"),{score:s,time:Date.now()});
+}
+</script>
+========================================================== */
 
-/* ===== SCENE ===== */
+/* ================= THREE SETUP ================= */
 const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,50);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,60);
 camera.position.set(0,6,8);
 camera.lookAt(0,0,0);
 
@@ -69,64 +84,62 @@ document.body.appendChild(renderer.domElement);
 
 scene.add(new THREE.AmbientLight(0xffffff,1));
 
-/* ===== TOWER ===== */
+/* ================= TOWER ================= */
 const tower=new THREE.Group();
 scene.add(tower);
 
-const pole=new THREE.Mesh(
-  new THREE.CylinderGeometry(.6,.6,30,16),
+tower.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(.6,.6,35,16),
   new THREE.MeshStandardMaterial({color:0x00ffff})
-);
-tower.add(pole);
+));
 
-/* ===== BALL ===== */
+/* ================= BALL ================= */
 const ball=new THREE.Mesh(
   new THREE.SphereGeometry(.25,16,16),
   new THREE.MeshStandardMaterial({color:0xff3333})
 );
 scene.add(ball);
 
-/* ===== RINGS ===== */
+/* ================= RINGS (REAL GAPS) ================= */
 let rings=[];
 function buildRings(){
   rings.forEach(r=>tower.remove(r));
   rings=[];
   for(let i=0;i<18;i++){
     const ring=new THREE.Group();
-    for(let j=0;j<6;j++){
-      if(Math.random()<0.3) continue;
+    for(let j=0;j<8;j++){
+      if(Math.random()<0.3) continue; // GAP
       const part=new THREE.Mesh(
         new THREE.BoxGeometry(1.2,.3,.5),
         new THREE.MeshStandardMaterial({color:i%2?0x00ff66:0xffcc00})
       );
-      const a=j*Math.PI/3;
+      const a=j*Math.PI/4;
       part.position.set(Math.cos(a),0,Math.sin(a));
       part.rotation.y=a;
       ring.add(part);
     }
-    ring.position.y=i*-1.5;
+    ring.position.y=i*-1.6;
     tower.add(ring);
     rings.push(ring);
   }
 }
 
-/* ===== GAME STATE ===== */
+/* ================= GAME STATE ================= */
 let running=false;
 let vy=0;
-let gravity=-0.016;
-let score=0;
-let coins=0;
-let combo=0;
+const gravity=-0.016;
+let score=0,coins=0,combo=0;
 
-/* ===== UI ===== */
+/* ================= UI ================= */
 const scoreUI=document.getElementById("score");
 const coinUI=document.getElementById("coins");
 const overlay=document.getElementById("overlay");
 const startBtn=document.getElementById("startBtn");
 const restartBtn=document.getElementById("restartBtn");
 const bgm=document.getElementById("bgm");
+const jumpSnd=document.getElementById("jumpSnd");
 
-/* ===== SPLASH ===== */
+/* ================= SPLASH ================= */
 function splash(y){
   const s=new THREE.Mesh(
     new THREE.CircleGeometry(.4,16),
@@ -138,32 +151,29 @@ function splash(y){
   setTimeout(()=>scene.remove(s),300);
 }
 
-/* ===== INPUT ===== */
-let dragging=false,lastX=0;
-
+/* ================= INPUT ================= */
+let drag=false,lastX=0;
 renderer.domElement.addEventListener("pointerdown",e=>{
   if(!running) return;
-  dragging=true;
-  lastX=e.clientX;
+  drag=true; lastX=e.clientX;
 });
-
-renderer.domElement.addEventListener("pointerup",()=>dragging=false);
-
+renderer.domElement.addEventListener("pointerup",()=>drag=false);
 renderer.domElement.addEventListener("pointermove",e=>{
-  if(dragging){
+  if(drag){
     tower.rotation.y+=(e.clientX-lastX)*0.005;
     lastX=e.clientX;
   }
 });
-
 renderer.domElement.addEventListener("click",()=>{
   if(!running) return;
-  vy=0.3;
+  vy=0.32;
+  jumpSnd.currentTime=0;
+  jumpSnd.play();
 });
 
-/* ===== GAME ===== */
+/* ================= GAME FLOW ================= */
 function resetGame(){
-  score=0;coins=0;combo=0;
+  score=coins=combo=0;
   scoreUI.innerText=0;
   coinUI.innerText="💰 0";
   vy=0;
@@ -173,8 +183,8 @@ function resetGame(){
 
 function startGame(){
   overlay.style.display="none";
-  restartBtn.style.display="none";
   startBtn.style.display="none";
+  restartBtn.style.display="none";
   resetGame();
   bgm.currentTime=0;
   bgm.play();
@@ -188,24 +198,21 @@ function gameOver(){
   bgm.pause();
 
   tg?.sendData(JSON.stringify({score,coins}));
+  // saveScore(score); // enable after Firebase setup
 }
 
-/* ===== LOOP ===== */
+/* ================= LOOP ================= */
 function animate(){
   requestAnimationFrame(animate);
-
-  if(!running){
-    renderer.render(scene,camera);
-    return;
-  }
+  if(!running){ renderer.render(scene,camera); return; }
 
   vy+=gravity;
   ball.position.y+=vy;
 
   for(const r of rings){
     if(Math.abs(ball.position.y-r.position.y)<.28 && vy<0){
-      vy=0.33+combo*0.02;
       combo++;
+      vy=0.34+combo*0.02;
       score+=1+combo;
       coins+=combo;
       scoreUI.innerText=score;
@@ -215,20 +222,25 @@ function animate(){
     }
   }
 
-  if(ball.position.y<-10) gameOver();
+  if(ball.position.y<-12) gameOver();
 
   renderer.render(scene,camera);
 }
 animate();
 
-/* ===== BUTTONS ===== */
-startBtn.onclick=()=>startGame();
-restartBtn.onclick=()=>startGame();
+/* ================= BUTTONS ================= */
+startBtn.onclick=startGame;
+restartBtn.onclick=startGame;
 
 addEventListener("resize",()=>{
   camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.s
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
+
 
 
 
