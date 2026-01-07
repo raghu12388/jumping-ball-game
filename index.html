@@ -1,36 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TEST</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Helix Jump Mini</title>
 <style>
-body{
-  margin:0;
-  height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:black;
-  color:#00ff00;
-  font-size:26px;
-  font-family:Arial;
+body { margin:0; overflow:hidden; background:#87CEEB; touch-action:none; }
+#ui{
+  position:fixed; top:10px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,.5); color:#fff;
+  padding:6px 12px; border-radius:8px; font-family:sans-serif;
 }
 </style>
 </head>
 <body>
+<div id="ui">Tap / Click to Jump</div>
 
-<div id="txt">HELIX GAME LOADING...</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
-document.getElementById("txt").innerText = "✅ PAGE IS WORKING";
-document.body.addEventListener("click",()=>{
-  document.body.style.background="green";
-  document.getElementById("txt").innerText="CLICK DETECTED";
-});
-</script>
+/* ---------- BASIC SETUP ---------- */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0,5,8);
 
-</body>
-</html>
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+document.body.appendChild(renderer.domElement);
+
+/* ---------- LIGHT ---------- */
+scene.add(new THREE.AmbientLight(0xffffff,.7));
+const light = new THREE.DirectionalLight(0xffffff,.6);
+light.position.set(5,10,5);
+scene.add(light);
+
+/* ---------- TOWER ----------*
+
 
 
 
