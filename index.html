@@ -2,68 +2,47 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Helix Jump Mini</title>
+<title>Helix Jump Telegram</title>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-
 <style>
-html,body{
-  margin:0;
-  overflow:hidden;
-  background:#8fd3f4;
-  font-family:Arial;
-}
-
-/* UI */
-#score{
-  position:fixed;
-  top:15px;
-  width:100%;
-  text-align:center;
-  font-size:32px;
-  font-weight:bold;
-  display:none;
-}
-
+html,body{margin:0;overflow:hidden;background:#8fd3f4;font-family:sans-serif}
+#ui{position:fixed;top:10px;width:100%;text-align:center;font-size:28px;font-weight:bold}
 #overlay{
-  position:fixed;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  background:rgba(0,0,0,.25);
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;background:rgba(0,0,0,.3)
 }
-
 button{
-  padding:14px 28px;
-  font-size:20px;
-  border:none;
-  border-radius:8px;
-  margin:10px;
-  cursor:pointer;
+  padding:14px 28px;font-size:20px;border:none;border-radius:8px;
+  margin:10px;cursor:pointer
 }
-
-#startBtn{background:#00e676}
-#restartBtn{background:#ff5252;color:#fff;display:none}
+#start{background:#00e676}
+#restart{background:#ff5252;color:white;display:none}
 </style>
 </head>
 
 <body>
 
-<div id="score">0</div>
-
+<div id="ui">0</div>
 <div id="overlay">
-  <button id="startBtn">▶ START</button>
-  <button id="restartBtn">🔄 RESTART</button>
+  <button id="start">▶ START</button>
+  <button id="restart">🔄 RESTART</button>
 </div>
+
+<audio id="bgm" loop>
+  <source src="music.mp3" type="audio/mpeg">
+</audio>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <script>
+/* ===== TELEGRAM ===== */
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+
 /* ===== SCENE ===== */
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,50);
-camera.position.set(0,6,8);
+camera.position.set(0,7,8);
 camera.lookAt(0,0,0);
 
 const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -74,95 +53,53 @@ document.body.appendChild(renderer.domElement);
 scene.add(new THREE.AmbientLight(0xffffff,1));
 
 /* ===== OBJECTS ===== */
+const tower=new THREE.Group();
+scene.add(tower);
+
 const pole=new THREE.Mesh(
-  new THREE.CylinderGeometry(.6,.6,20,16),
+  new THREE.CylinderGeometry(.6,.6,30,16),
   new THREE.MeshStandardMaterial({color:0x00ffff})
 );
-scene.add(pole);
+tower.add(pole);
 
 const ball=new THREE.Mesh(
   new THREE.SphereGeometry(.25,16,16),
-  new THREE.MeshStandardMaterial({color:0xff0000})
+  new THREE.MeshStandardMaterial({color:0xff4444})
 );
 scene.add(ball);
 
-const rings=[];
-function createRings(){
-  rings.length=0;
-  for(let i=0;i<12;i++){
-    const r=new THREE.Mesh(
-      new THREE.TorusGeometry(1,.25,8,24),
-      new THREE.MeshStandardMaterial({color:i%2?0xffcc00:0x00ff66})
-    );
-    r.rotation.x=Math.PI/2;
-    r.position.y=i*-1.5;
-    scene.add(r);
-    rings.push(r);
+/* ===== RINGS WITH GAPS ===== */
+let rings=[];
+function buildRings(){
+  rings.forEach(r=>tower.remove(r));
+  rings=[];
+  for(let i=0;i<15;i++){
+    const ring=new THREE.Group();
+    for(let j=0;j<6;j++){
+      if(Math.random()<0.25) continue; // GAP
+      const part=new THREE.Mesh(
+        new THREE.BoxGeometry(1.2,.3,.5),
+        new THREE.MeshStandardMaterial({color:i%2?0x00ff66:0xffcc00})
+      );
+      const a=j*Math.PI/3;
+      part.position.set(Math.cos(a),0,Math.sin(a));
+      part.rotation.y=a;
+      ring.add(part);
+    }
+    ring.position.y=i*-1.6;
+    tower.add(ring);
+    rings.push(ring);
   }
 }
 
 /* ===== GAME STATE ===== */
-let vy=0,gravity=-0.015;
-let score=0;
+let vy=0,gravity=-0.015,score=0,combo=0;
 let running=false;
 
 /* ===== UI ===== */
-const scoreUI=document.getElementById("score");
-const overlay=document.getElementById("overlay");
-const startBtn=document.getElementById("startBtn");
-const restartBtn=document.getElementById("restartBtn");
+const ui=document.getElementById("ui");
+const overlay=document.getElemen
 
-/* ===== SOUND ===== */
-const jumpSound=new Audio("jump.mp3");
-jumpSound.volume=.4;
-
-/* ===== FUNCTIONS ===== */
-function startGame(){
-  overlay.style.display="none";
-  scoreUI.style.display="block";
-  restartBtn.style.display="none";
-  resetGame();
-  running=true;
-}
-
-function resetGame(){
-  score=0;
-  scoreUI.innerText=0;
-  vy=0;
-  ball.position.set(.8,5,0);
-  createRings();
-}
-
-function gameOver(){
-  running=false;
-  overlay.style.display="flex";
-  startBtn.style.display="none";
-  restartBtn.style.display="block";
-}
-
-/* ===== INPUT ===== */
-addEventListener("pointerdown",()=>{
-  if(!running) return;
-  vy=0.25;
-  jumpSound.currentTime=0;
-  jumpSound.play();
-});
-
-/* ===== LOOP ===== */
-function animate(){
-  requestAnimationFrame(animate);
-  if(!running){ renderer.render(scene,camera); return; }
-
-  vy+=gravity;
-  ball.position.y+=vy;
-
-  rings.forEach(r=>{
-    if(Math.abs(ball.position.y-r.position.y)<.25 && vy<0){
-      vy=0.22;
-      score++;
-      scoreUI.innerText=score;
-    }
-  });
 
 
 
